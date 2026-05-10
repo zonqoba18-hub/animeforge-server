@@ -24,7 +24,7 @@ app.post('/generate', async (req, res) => {
       model: 'gen4.5',
       promptText: prompt,
       duration: dur,
-      ratio: '16:9'
+      ratio: '1280:720'
     };
 
     // Only add image if one was provided
