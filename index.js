@@ -17,30 +17,24 @@ app.post('/generate', async (req, res) => {
 
   try {
     const fetch = (await import('node-fetch')).default;
-    let endpoint, body;
 
+    // Use gen4.5 — supports BOTH text-only and image+text
+    // ratio must be '16:9' for gen4.5, NOT '1280:768'
+    const body = {
+      model: 'gen4.5',
+      promptText: prompt,
+      duration: dur,
+      ratio: '16:9'
+    };
+
+    // Only add image if one was provided
     if (imageBase64) {
-      // Image to video using gen4.5
-      endpoint = RUNWAY_BASE + '/image_to_video';
-      body = {
-        model: 'gen4_turbo',
-        promptImage: imageBase64,
-        promptText: prompt,
-        duration: dur,
-        ratio: '1280:768'
-      };
-    } else {
-      // Text to video using gen4.5 — supports text only
-      endpoint = RUNWAY_BASE + '/text_to_video';
-      body = {
-        model: 'gen4_turbo',
-        promptText: prompt,
-        duration: dur,
-        ratio: '1280:768'
-      };
+      body.promptImage = imageBase64;
     }
 
-    const response = await fetch(endpoint, {
+    console.log('Sending to Runway:', { model: body.model, duration: dur, hasImage: !!imageBase64 });
+
+    const response = await fetch(RUNWAY_BASE + '/image_to_video', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,14 +46,17 @@ app.post('/generate', async (req, res) => {
 
     const text = await response.text();
     let data;
-    try { data = JSON.parse(text); } catch(e) { return res.status(500).json({ error: text }); }
+    try { data = JSON.parse(text); } catch(e) { 
+      console.error('Non-JSON response:', text);
+      return res.status(500).json({ error: text }); 
+    }
 
     if (!response.ok) {
       console.error('Runway error:', JSON.stringify(data));
-      return res.status(response.status).json({ error: data.message || data.error || JSON.stringify(data) });
+      return res.status(response.status).json({ error: data.message || JSON.stringify(data) });
     }
 
-    console.log('Task created:', data.id);
+    console.log('Task created successfully:', data.id);
     res.json({ id: data.id });
 
   } catch(err) {
